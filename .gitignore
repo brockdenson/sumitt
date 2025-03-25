@@ -1,0 +1,7 @@
+config.py
+__pycache__/
+*.pyc
+.env
+output/
+screenshots/
+test_sms.py
