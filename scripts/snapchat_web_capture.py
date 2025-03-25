@@ -5,13 +5,13 @@ import os
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(ROOT_DIR)
 
+import time
+from datetime import datetime, timedelta, timezone
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from helpers.message_scraper import extract_messages_from_html
-import time
-from datetime import datetime
+from helpers.message_scraper import extract_messages_from_html, get_earliest_timestamp
 
 OUTPUT_DIR = "screenshots/"
 LOG_DIR = "logs/"
@@ -27,35 +27,51 @@ def launch_browser():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
 
-    # os.system("taskkill /F /IM chrome.exe")
-    # os.system("taskkill /F /IM chromedriver.exe")
-
     service = Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=options)
 
-def scroll_chat(driver, delay=1.5):
-    try:
-        scrollable = driver.find_element("css selector", "ul.MibAa")
-        driver.execute_script("arguments[0].scrollTop -= 600;", scrollable)
-        print("[↕] Scrolled chat container up")
+def get_previous_day_4am_cutoff():
+    now = datetime.now()
+    yesterday = now - timedelta(days=1)
+    cutoff = yesterday.replace(hour=4, minute=0, second=0, microsecond=0)
+    return cutoff
+
+def scroll_up_until_cutoff(driver, cutoff_start, delay=1.5, max_scrolls=30):
+    print(f"[⬆️] Scrolling up until we see message before {cutoff_start.strftime('%Y-%m-%d %H:%M')}")
+    scrollable = driver.find_element("css selector", "ul.MibAa")
+
+    for i in range(max_scrolls):
+        earliest = get_earliest_timestamp(driver)
+        if earliest and earliest.replace(tzinfo=None) < cutoff_start:
+            print(f"[✅] Found message before 4AM previous day: {earliest}")
+            break
+        driver.execute_script("arguments[0].scrollTop -= 800;", scrollable)
+        print(f"[↕] Scrolled up ({i + 1})")
         time.sleep(delay)
-    except Exception as e:
-        print(f"[!] Scroll failed: {e}")
+
+    print("[🛑] Finished scrolling up.")
+
+def get_previous_day_4am_cutoff():
+    now = datetime.now()
+    yesterday = now - timedelta(days=1)
+    return yesterday.replace(hour=4, minute=0, second=0, microsecond=0)
 
 def capture_snapchat():
     driver = launch_browser()
     driver.get("https://web.snapchat.com")
     input("➡️ Log into Snapchat Web, open the group chat, then press Enter...")
 
-    # Optional screenshot scroll (visual backup)
-    for i in range(4):  # scroll up 4 times
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        driver.save_screenshot(f"{OUTPUT_DIR}snap_web_{timestamp}.png")
-        scroll_chat(driver)
+    # Get the 4AM of previous calendar day in local time
+    local_cutoff_start = get_previous_day_4am_cutoff()
+    cutoff_start = local_cutoff_start.astimezone(timezone.utc).replace(tzinfo=None)
+    cutoff_end = cutoff_start + timedelta(days=1)
 
-    # Extract messages to log
-    chat_text = extract_messages_from_html(driver)
-    log_file = datetime.now().strftime(f"{LOG_DIR}%Y-%m-%d.txt")
+    scroll_up_until_cutoff(driver, cutoff_start)
+
+    chat_text = extract_messages_from_html(driver, cutoff_start=cutoff_start, cutoff_end=cutoff_end)
+
+    # Save log file as the date of the 4AM start (the day you're capturing)
+    log_file = local_cutoff_start.strftime(f"{LOG_DIR}%Y-%m-%d.txt")
     with open(log_file, "w", encoding="utf-8") as f:
         f.write(chat_text)
 
