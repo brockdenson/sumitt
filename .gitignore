@@ -5,3 +5,5 @@ __pycache__/
 output/
 screenshots/
 test_sms.py
+selenium-profile/
+logs/

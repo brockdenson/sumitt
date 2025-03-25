@@ -1,22 +1,12 @@
 from openai import OpenAI
 import os
 from datetime import datetime
+from helpers.ocr import extract_chat_from_folder
 from helpers.sms import send_sms
 from config import OPENAI_API_KEY
 
 # Initialize the OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
-
-def get_today_log():
-    """
-    Returns the contents of today's extracted chat log file.
-    """
-    filename = datetime.now().strftime("logs/%Y-%m-%d.txt")
-    if not os.path.exists(filename):
-        print(f"[!] No chat log found for today: {filename}")
-        return ""
-    with open(filename, "r", encoding="utf-8") as f:
-        return f.read()
 
 def summarize_chat(chat_text):
     prompt = f"""
@@ -51,9 +41,9 @@ def save_summary(summary):
         f.write(summary)
 
 def main():
-    chat_text = get_today_log()
+    chat_text = extract_chat_from_folder("screenshots/")
     if not chat_text.strip():
-        print("No text extracted. Check your log file.")
+        print("No text extracted. Check your screenshots.")
         return
 
     summary = summarize_chat(chat_text)
