@@ -1,42 +1,57 @@
-from bs4 import BeautifulSoup
+import time
 from datetime import datetime
-import re
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 def extract_messages_from_html(driver):
-    html = driver.page_source
-    soup = BeautifulSoup(html, "html.parser")
-
-    chat_container = soup.select_one("ul.MibAa")
-    if not chat_container:
-        print("[!] Chat container not found")
-        return ""
-
     logs = []
-    current_day = datetime.now().strftime("%Y-%m-%d")
-
     last_sender = None
-    last_timestamp = "TBD"  # We'll fix this later
+    actions = ActionChains(driver)
 
-    for li in chat_container.select("li.T1yt2"):
-        # Check if this message has a new sender
-        sender_elem = li.select_one("header.R1ne3 span.nonIntl")
-        if sender_elem:
-            sender = sender_elem.text.strip()
-            last_sender = sender
-        else:
-            sender = last_sender or "Unknown"
+    message_items = driver.find_elements(By.CSS_SELECTOR, "li.T1yt2")
 
-        # Get all message bubbles under this block (can be multiple)
-        message_bubbles = li.select("div.KB4Aq div.p8r1z span.ogn1z")
+    for item in message_items:
+        try:
+            # Get sender from within the message item
+            try:
+                sender_elem = item.find_element(By.CSS_SELECTOR, "header.R1ne3 span.nonIntl")
+                sender = sender_elem.text.strip()
+                last_sender = sender
+            except:
+                sender = last_sender or "Unknown"
 
-        for bubble in message_bubbles:
-            content = bubble.text.strip()
-
-            # Skip blank or malformed messages
-            if not content:
+            # Hover over the message bubble to reveal timestamp
+            try:
+                bubble = item.find_element(By.CSS_SELECTOR, "div.KB4Aq")
+                actions.move_to_element(bubble).perform()
+                time.sleep(0.2)  # Allow timestamp to appear
+            except Exception as e:
+                print(f"[!] Failed to hover: {e}")
                 continue
 
-            logs.append(f"[{current_day} {datetime.now().strftime('%H:%M')}] {sender}: {content}")
+            # Try to get timestamp from <time> element now in DOM
+            timestamp = "Unknown"
+            try:
+                time_elem = item.find_element(By.CSS_SELECTOR, "header.R1ne3 time")
+                if time_elem.get_attribute("datetime"):
+                    dt = datetime.fromisoformat(time_elem.get_attribute("datetime"))
+                    timestamp = dt.strftime("%Y-%m-%d %H:%M")
+            except Exception as e:
+                pass  # fallback to Unknown
 
-    print(f"[✓] Parsed {len(logs)} messages from DOM.")
+            # Extract message text (could be multiple per sender block)
+            bubbles = item.find_elements(By.CSS_SELECTOR, "div.KB4Aq div.p8r1z span.ogn1z")
+            for b in bubbles:
+                content = b.text.strip()
+                if content:
+                    logs.append(f"[{timestamp}] {sender}: {content}")
+
+        except Exception as e:
+            print(f"[!] Failed to parse message: {e}")
+            continue
+
+    print(f"[✓] Parsed {len(logs)} messages from DOM with timestamps.")
     return "\n".join(logs)
