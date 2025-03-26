@@ -51,11 +51,6 @@ def scroll_up_until_cutoff(driver, cutoff_start, delay=1.5, max_scrolls=30):
 
     print("[🛑] Finished scrolling up.")
 
-def get_previous_day_4am_cutoff():
-    now = datetime.now()
-    yesterday = now - timedelta(days=1)
-    return yesterday.replace(hour=4, minute=0, second=0, microsecond=0)
-
 def capture_snapchat():
     driver = launch_browser()
     driver.get("https://web.snapchat.com")
