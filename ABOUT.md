@@ -17,8 +17,6 @@
 
 ## 🎯 Mission Statement
 
-**Mission Statement**
-
 To empower people to disconnect from distracting platforms without disconnecting from their friends, by delivering thoughtful, personalized, and automated recaps that preserve connection, context, and community—without pressure or noise.
 
 ---
