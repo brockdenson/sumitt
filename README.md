@@ -46,6 +46,9 @@ cd sumitt
 pip install -r requirements.txt
 ```
 
+This project relies on the new `openai` Python library (version `1.0.0` or
+higher), which is specified in `requirements.txt`.
+
 Make sure you have **Tesseract OCR** installed on your machine:
 
 #### Windows:
